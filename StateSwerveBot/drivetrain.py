@@ -12,19 +12,20 @@ MAX_OMEGA_PS = math.pi * 3
 DEADBAND = 0.02
 
 class DriveTrain:
+
     def __init__(self) -> None:
         self.module_locations = [
-            Translation2d(0.381, 0.381),    # front left
-            Translation2d(0.381, -0.381),   # front right
-            Translation2d(-0.381, 0.381),   # back left
-            Translation2d(-0.381, -0.381)   # back right
+            Translation2d(0.381, 0.381),  # front left
+            Translation2d(0.381, -0.381),  # front right
+            Translation2d(-0.381, 0.381),  # back left
+            Translation2d(-0.381, -0.381)  # back right
         ]
 
         self.modules = [
             SwerveModule(1, 5, 9),  # front left
-            SwerveModule(2, 6, 10),   # front right
+            SwerveModule(2, 6, 10),  # front right
             SwerveModule(3, 7, 11),  # back left
-            SwerveModule(4, 8, 12)   # back right
+            SwerveModule(4, 8, 12)  # back right
         ]
 
         self.gyro = Pigeon2(13, canbus="can0")
@@ -32,8 +33,7 @@ class DriveTrain:
 
         self.kinematics = SwerveDrive4Kinematics(*self.module_locations)
         self.odometry = SwerveDrive4Odometry(
-            self.kinematics,
-            self.gyro.getRotation2d(),
+            self.kinematics, self.gyro.getRotation2d(),
             tuple(module.getPosition() for module in self.modules)
         )
 
@@ -57,7 +57,12 @@ class DriveTrain:
         self.ySpeed = ySpeed
         self.rot = rot
 
-        module_states = self.kinematics.toSwerveModuleStates(ChassisSpeeds(xSpeed, ySpeed, rot))
+        chassis_speeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+            xSpeed, ySpeed, rot, self.gyro.getRotation2d()
+        )
+
+        module_states = self.kinematics.toSwerveModuleStates(chassis_speeds)
+
         for module, state in zip(self.modules, module_states):
             module.setDesiredState(state)
 
@@ -65,10 +70,10 @@ class DriveTrain:
         """Constructs FSM states."""
         self.fsm.construct_state(
             "teleop_drive",
-            lambda: True, # Always true, add logic to ensure teleop mode
+            lambda: True,  # Always true, add logic to ensure teleop mode
             lambda: self.drive(
-                self.lstick.getX() * MAX_SPEED_MPS,
-                -self.lstick.getY() * MAX_SPEED_MPS,
+                self.lstick.getX() * MAX_SPEED_MPS, 
+                -self.lstick.getY() * MAX_SPEED_MPS, 
                 -self.rstick.getX() * MAX_OMEGA_PS
             ),
             lambda: print("MODE: Teleop")
